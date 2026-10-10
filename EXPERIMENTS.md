@@ -341,6 +341,21 @@ First router with signal on test, but it is difficulty signal: it predicts that 
 work, not which failing tasks gpt-5.2 would rescue. Extra analysis (not the headline): switch to gpt-5.2 when
 P(flash) < 0.50 and P(none) < 0.40 (chosen on val): val +1.6 (CI -0.0 to +3.3), test **-0.2 (CI -1.2 to +0.9)**.
 
+## Exp 9: scouting, issue + first 16 flash steps
+
+Same as Exp 8 with K = 16 (mean prefix $0.0031), max 6,144 tokens. ~3 h on a shared GPU.
+
+| | Val | Test |
+|---|---|---|
+| Highest pick (none -> gpt-5.2): solve, $/task | 0.591, 0.1672 | 0.682, 0.1480 |
+| vs mixing line (95% CI) | +0.3 (-2.1 to +2.8) | **-1.7 (-3.1 to -0.4)** |
+| Picks (flash / mini / gpt-5.2 / none) | 192 / 0 / 0 / 145 | 583 / 0 / 0 / 417 |
+| AUC this flash run solves / nothing solves | 0.739 / 0.687 | **0.639 / 0.657** |
+
+Val loss 1.382 before, 1.020, 1.031; calibrated val accuracy 0.564. More steps give more (difficulty) signal on
+test than K = 8, but under highest pick the better `none` detection sends exactly the hopeless tasks to gpt-5.2,
+so routing is now significantly worse than random mixing.
+
 ## Exp 10: train directly on "would gpt-5.2 rescue it" (with scouting)
 
 Targets the model-specific part routing needs. Only flash runs that fail, with flash's first 8 steps shown;
