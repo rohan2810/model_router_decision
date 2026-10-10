@@ -187,6 +187,26 @@ model, not the best one.
 - Command: `PYTHONUNBUFFERED=1 python scripts/train.py --model unsloth/Qwen3.5-2B --epochs 6 --out outputs/exp3-qwen3.5-2b-6ep` (GPU 2)
 - Status: running (started 2026-10-10)
 
+## Exp 4: Qwen3.5-2B, full fine-tune, 6 epochs
+
+Same as Exp 3 but every backbone weight is trained (16-bit, no LoRA), with a lower learning rate.
+
+| Setting | Value |
+|---|---|
+| Base model | `unsloth/Qwen3.5-2B`, 16-bit, all 2,243,714,372 parameters trainable |
+| Train / val rows | 1,913 / 337 |
+| Max sequence length | 2,048 tokens |
+| Learning rate | 2e-5 backbone (cosine, 10 warmup steps, weight decay 0.01); head 1e-4 |
+| Batch | 32 per device x 1 grad accumulation = 32 effective |
+| Epochs | 6 (~60 steps/epoch, ~360 steps) |
+| Seed | 3407 |
+| Calibration | `FastDecisionModel.calibrate` on val |
+| Output | `outputs/exp4-qwen3.5-2b-full-6ep` |
+
+- Memory probe (4 steps at 16 x 2): peak 20 GB of 48 GB, so the run uses 32 x 1.
+- Command: `PYTHONUNBUFFERED=1 python scripts/train.py --model unsloth/Qwen3.5-2B --full-finetune --lr 2e-5 --epochs 6 --batch-size 32 --grad-accum 1 --out outputs/exp4-qwen3.5-2b-full-6ep` (GPU 1)
+- Status: running (started 2026-10-10)
+
 ---
 
 ## Later (parked ideas)

@@ -2,10 +2,13 @@
 
 Trains LoRA adapters plus a fresh Clef head on data/processed/train.jsonl, uses the
 repo-disjoint val split for per-epoch eval and temperature calibration, then saves
-the adapters + head (and optionally a merged 16-bit copy).
+the adapters + head (and optionally a merged 16-bit copy). With --full-finetune it
+trains every backbone weight in 16-bit instead of LoRA adapters.
 
 Usage:
     CUDA_VISIBLE_DEVICES=0 python scripts/train.py --out outputs/router-qwen3.5-4b
+    CUDA_VISIBLE_DEVICES=0 python scripts/train.py --model unsloth/Qwen3.5-2B --full-finetune --lr 2e-5 \
+        --out outputs/router-qwen3.5-2b-full
 """
 
 import argparse
@@ -44,6 +47,8 @@ def main():
     ap.add_argument("--grad-accum", type=int, default=4)
     ap.add_argument("--seed", type=int, default=3407)
     ap.add_argument("--no-4bit", action="store_true", help="load the backbone in 16-bit")
+    ap.add_argument("--full-finetune", action="store_true",
+                    help="train all backbone weights in 16-bit instead of LoRA (use a lower --lr, e.g. 2e-5)")
     ap.add_argument("--merged", action="store_true", help="also save a merged 16-bit model for serving")
     ap.add_argument("--report-to", default="none", help="e.g. wandb, trackio")
     args = ap.parse_args()
@@ -51,17 +56,22 @@ def main():
     model, tokenizer = FastDecisionModel.from_pretrained(
         model_name=args.model,
         max_seq_length=args.max_seq_length,
-        load_in_4bit=not args.no_4bit,
+        load_in_4bit=not (args.no_4bit or args.full_finetune),
+        full_finetuning=args.full_finetune,
         random_state=args.seed,
     )
-    model = FastDecisionModel.get_peft_model(
-        model,
-        r=args.rank,
-        lora_alpha=args.rank,
-        lora_dropout=0,
-        use_gradient_checkpointing="unsloth",
-        random_state=args.seed,
-    )
+    if not args.full_finetune:
+        model = FastDecisionModel.get_peft_model(
+            model,
+            r=args.rank,
+            lora_alpha=args.rank,
+            lora_dropout=0,
+            use_gradient_checkpointing="unsloth",
+            random_state=args.seed,
+        )
+    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    total = sum(p.numel() for p in model.parameters())
+    print(f"trainable parameters: {trainable:,} of {total:,} ({trainable / total:.1%})")
 
     train_items = build(load_rows(args.train), tokenizer, model, "train")
     val_items = build(load_rows(args.val), tokenizer, model, "val")
