@@ -32,6 +32,18 @@ gold is a soft distribution from each model's pass rate across runs.
 - A `none` pick is routed to gpt-5.2 unless stated (`--none-to`).
 - Hyperparameters are chosen on val; test is run once per final model.
 
+**Reference points on val** (no model; val has 1 run per model, so pass rates are 0 or 1)
+
+| Router | Solve | $/task |
+|---|---|---|
+| always-deepseek-v4-flash | 0.537 | 0.0091 |
+| always-gpt-5-mini | 0.490 | 0.0327 |
+| always-gpt-5.2 | 0.623 | 0.2775 |
+| random | 0.550 | 0.1065 |
+| oracle (cheapest solver, none -> gpt-5.2) | 0.691 | 0.1609 |
+
+Majority label on val is flash (181/337), so accuracy 0.537 is what "always flash" scores.
+
 **Reference points on test** (from the gold labels, no model)
 
 | Router | Solve | $/task |
@@ -67,12 +79,15 @@ Not a result.
 - Command: `python scripts/predict.py --mode zeroshot --model unsloth/Qwen3.5-0.8B --data data/processed/{val,test}.jsonl --out outputs/preds/exp1a-{val,test}.jsonl` (GPU 1)
 - Prompt asks for one option letter; probabilities are the letter logits averaged over the 4 cyclic
   rotations of the option order, so position bias cancels.
-- Status: running
+- Status: val done; test running
+- Result (val): picks flash for all 337 tasks, so it is identical to always-flash. The prompted base
+  model adds no routing signal beyond "use the cheapest model".
 
 ### 1b. Base + untrained head (sanity check)
 
 - Command: `python scripts/predict.py --mode head --model unsloth/Qwen3.5-0.8B --data data/processed/val.jsonl --out outputs/preds/exp1b-val.jsonl` (GPU 3)
-- Status: running
+- Status: done
+- Result (val): chance level (accuracy 0.291, soft CE 1.384 = ln 4), as expected. Sanity check passed.
 
 ### 1c. Trained
 
@@ -96,6 +111,22 @@ Not a result.
 
 | Router | Acc | Soft CE | ECE | Solve | $/task | Picks (flash / mini / gpt-5.2 / none) |
 |---|---|---|---|---|---|---|
-| 1a base, prompted | | | | | | |
-| 1b base + untrained head | | | | | | |
+| 1a base, prompted | 0.537 | 1.158 | 0.017 | 0.537 | 0.0091 | 337 / 0 / 0 / 0 |
+| 1b base + untrained head | 0.291 | 1.384 | 0.036 | 0.507 | 0.0223 | 161 / 176 / 0 / 0 |
 | 1c trained | | | | | | |
+
+Solve and $/task above route by the argmax pick (a `none` pick goes to gpt-5.2). Full metrics, recall
+and the tau curve: `outputs/eval/exp1ab-val.json`.
+
+---
+
+## Later (parked ideas)
+
+- **Partial-label SWE data.** Add per-model `noul` questions ("Will <model> resolve this?") next to
+  `route`, so tasks with results for only some models still train (Unsloth skips unlabeled
+  questions). Candidates: ~4k SWE-smith tasks with gpt-5-mini only (`v4-4k-traj`), SWE-bench
+  Multilingual (flash and mini, no gpt-5.2).
+- **Other-domain routing data.** Mix in e.g. RouterBench (MBPP and others) with each source's own
+  model descriptions, sampled about 1:1 with ours, so the head learns to read option descriptions.
+  Run as a controlled comparison on the same val set.
+- **Larger backbones.** Qwen3.5-2B and 4B once the 0.8B pipeline and numbers are settled.
