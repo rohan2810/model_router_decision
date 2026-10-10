@@ -47,6 +47,8 @@ that resolves the task). Settings and commands for each run are in [EXPERIMENTS.
 | Qwen3.5-0.8B, trained | 1c | 0.555 | 0.1382 | 0.454 | 186 / 0 / 0 / 151 |
 | Qwen3.5-2B LoRA, epoch 2 of 6 (best val loss) | 3 | 0.546 | 0.0445 | 0.537 | 300 / 0 / 0 / 37 |
 | Qwen3.5-2B LoRA, epoch 6 of 6 | 3 | 0.570 | 0.1498 | 0.490 | 193 / 0 / 0 / 144 |
+| Qwen3.5-0.8B full fine-tune, epoch 3 of 3 | 5 | 0.558 | 0.1039 | 0.501 | 235 / 0 / 0 / 102 |
+| Qwen3.5-2B full fine-tune, epoch 2 of 6 (best val loss) | 4 | 0.543 | 0.0335 | 0.558 | 313 / 0 / 0 / 24 |
 | laya (English, 421M), zero-shot | 2a | 0.531 | 0.0881 | 0.104 | 0 / 262 / 34 / 41 |
 | laya-multilingual (322M), zero-shot | 2b | 0.611 | 0.2403 | 0.306 | 15 / 24 / 0 / 298 |
 | laya-typed-decisions (421M), zero-shot | 2c | 0.531 | 0.1184 | 0.068 | 0 / 237 / 99 / 1 |
@@ -63,6 +65,8 @@ that resolves the task). Settings and commands for each run are in [EXPERIMENTS.
 | Qwen3.5-0.8B, prompted (zero-shot) | 1a | 0.665 | 0.0140 | 0.754 | 500 / 0 / 0 / 0 |
 | Qwen3.5-0.8B, trained | 1c | 0.694 | 0.1550 | 0.446 | 232 / 0 / 0 / 268 |
 | Qwen3.5-2B LoRA, epoch 2 of 6 (best val loss) | 3 | 0.684 | 0.0806 | 0.582 | 361 / 0 / 0 / 139 |
+| Qwen3.5-0.8B full fine-tune, epoch 3 of 3 | 5 | 0.690 | 0.1295 | 0.500 | 269 / 0 / 0 / 231 |
+| Qwen3.5-2B full fine-tune, epoch 2 of 6 (best val loss) | 4 | 0.682 | 0.0848 | 0.628 | 373 / 0 / 0 / 127 |
 
 The oracle sends each task to the cheapest model that solves it at least half the time, so its solve
 rate can sit below always-gpt-5.2.
@@ -76,7 +80,9 @@ beyond "use the cheapest model".
 **Reading test.** The mixing line runs from always-flash (0.665 at $0.014) to always-gpt-5.2 (0.727 at
 $0.256). The trained 0.8B lands at 0.694 for $0.155, just under the line (0.701 at that cost): no better
 than randomly sending 58% of tasks to gpt-5.2. It picks `none` for 268 of 500 tasks although only 84 have
-no solver, because `none` is 47% of the training labels.
+no solver, because `none` is 47% of the training labels. The other trained routers (0.8B full fine-tune, 2B LoRA,
+2B full fine-tune) also land on the line (-0.5 to +0.2 points), and their probabilities are at chance for
+predicting which model solves a test task (AUC 0.48 to 0.54). Neither model size nor full fine-tuning helped.
 
 ## Reproduce
 

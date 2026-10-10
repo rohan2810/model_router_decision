@@ -231,7 +231,43 @@ Same as Exp 3 but every backbone weight is trained (16-bit, no LoRA), with a low
 
 - Memory probe (4 steps at 16 x 2): peak 20 GB of 48 GB, so the run uses 32 x 1.
 - Command: `PYTHONUNBUFFERED=1 python scripts/train.py --model unsloth/Qwen3.5-2B --full-finetune --lr 2e-5 --epochs 6 --batch-size 32 --grad-accum 1 --out outputs/exp4-qwen3.5-2b-full-6ep` (GPU 1)
-- Status: running (started 2026-10-10)
+- Status: done. 360 steps in 3,324 s (~55 min), ~23 GB of 48 GB at batch 32.
+- Val loss by epoch: 1.164, **1.111**, 1.197, 1.246, 1.421, 1.455. Best at epoch 2, then overfits like Exp 3
+  (average train loss 0.780). Final epoch 6 after calibration: val accuracy 0.513, loss 1.150, ECE 0.050.
+- Evaluated the epoch-2 checkpoint (`kept/checkpoint-120`, loaded in 16-bit).
+
+## Exp 5: Qwen3.5-0.8B, full fine-tune, 3 epochs
+
+Same as Exp 1c (0.8B LoRA, 3 epochs) but every weight is trained.
+
+| Setting | Value |
+|---|---|
+| Base model | `unsloth/Qwen3.5-0.8B`, 16-bit, all 880,310,852 parameters trainable |
+| Learning rate | 2e-5 backbone (cosine, 10 warmup steps, weight decay 0.01); head 1e-4 |
+| Batch | 32 per device x 1 grad accumulation = 32 effective |
+| Epochs | 3 (180 steps) |
+| Output | `outputs/exp5-qwen3.5-0.8b-full-3ep` |
+
+- Command: `PYTHONUNBUFFERED=1 python scripts/train.py --model unsloth/Qwen3.5-0.8B --full-finetune --lr 2e-5 --epochs 3 --batch-size 32 --grad-accum 1 --out outputs/exp5-qwen3.5-0.8b-full-3ep` (GPU 4)
+- Status: done. 180 steps in 1,043 s (~17 min).
+- Val loss by epoch: 1.202, 1.119, **1.118** (no overfitting in 3 epochs; average train loss 1.044).
+  Final after calibration: val accuracy 0.504, loss 1.116, ECE 0.085.
+
+## Exp 1-5 trained routers side by side
+
+Highest-probability pick, `none` -> gpt-5.2 (`outputs/eval/all-trained-{val,test}.json`). "vs line" is the solve
+gain over randomly mixing always-flash and always-gpt-5.2 at the same cost.
+
+| Router | Val solve | Val $/task | Val vs line | Test solve | Test $/task | Test vs line | Test AUC flash solves / nothing solves |
+|---|---|---|---|---|---|---|---|
+| 1c 0.8B LoRA (3 ep) | 0.555 | 0.1382 | -2.3 | 0.694 | 0.1550 | -0.7 | 0.530 / 0.534 |
+| 5 0.8B full (3 ep) | 0.558 | 0.1039 | -0.9 | 0.690 | 0.1295 | -0.5 | 0.493 / 0.517 |
+| 3 2B LoRA (epoch 2) | 0.546 | 0.0445 | -0.2 | 0.684 | 0.0806 | +0.2 | 0.501 / 0.481 |
+| 4 2B full (epoch 2) | 0.543 | 0.0335 | -0.2 | 0.682 | 0.0848 | -0.1 | 0.523 / 0.535 |
+
+None beats random mixing on test, and none predicts which model solves a test task (AUC 0.48 to 0.54).
+Larger backbone and full fine-tuning lower val loss a little but do not transfer to SWE-bench Verified.
+No router ever picks gpt-5-mini or gpt-5.2 directly; every gpt-5.2 call comes from a `none` pick.
 
 ---
 
