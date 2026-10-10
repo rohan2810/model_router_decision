@@ -27,9 +27,48 @@ Each row is one task:
   `P(k) = p_k · Π_{j cheaper} (1 − p_j)` and `P(none) = Π_k (1 − p_k)`. What to do on `none` is a deployment policy.
 - `pass_rate`, `cost`, `n_runs`, `oracle`: per-model results for evaluation, not model input.
 
+## Results
+
+Following each router's top pick (a `none` pick goes to gpt-5.2): **solve** is the expected share of
+tasks resolved, **$/task** the average cost. Accuracy is against the gold label (cheapest model
+that resolves the task). Settings and commands for each run are in [EXPERIMENTS.md](EXPERIMENTS.md).
+
+**Val** (SWE-smith, 337 tasks)
+
+| Router | Exp | Solve | $/task | Acc | Picks (flash / mini / gpt-5.2 / none) |
+|---|---|---|---|---|---|
+| always deepseek-v4-flash | – | 0.537 | 0.0091 | – | – |
+| always gpt-5-mini | – | 0.490 | 0.0327 | – | – |
+| always gpt-5.2 | – | 0.623 | 0.2775 | – | – |
+| random | – | 0.550 | 0.1065 | – | – |
+| oracle (perfect routing) | – | 0.691 | 0.1609 | – | 181 / 20 / 136 / – |
+| Qwen3.5-0.8B, prompted (zero-shot) | 1a | 0.537 | 0.0091 | 0.537 | 337 / 0 / 0 / 0 |
+| Qwen3.5-0.8B + untrained head | 1b | 0.507 | 0.0223 | 0.291 | 161 / 176 / 0 / 0 |
+| Qwen3.5-0.8B, trained | 1c | running | | | |
+
+**Test** (SWE-bench Verified, 500 tasks)
+
+| Router | Exp | Solve | $/task | Acc | Picks (flash / mini / gpt-5.2 / none) |
+|---|---|---|---|---|---|
+| always deepseek-v4-flash | – | 0.665 | 0.0140 | – | – |
+| always gpt-5-mini | – | 0.556 | 0.0331 | – | – |
+| always gpt-5.2 | – | 0.727 | 0.2558 | – | – |
+| random | – | 0.649 | 0.1010 | – | – |
+| oracle (perfect routing) | – | 0.724 | 0.0952 | – | 377 / 7 / 116 / – |
+| Qwen3.5-0.8B, prompted (zero-shot) | 1a | running | | | |
+| Qwen3.5-0.8B, trained | 1c | not run | | | |
+
+The oracle sends each task to the cheapest model that solves it at least half the time, so its solve
+rate can sit below always-gpt-5.2. The prompted 0.8B picks flash for every val task: it adds nothing
+beyond "use the cheapest model".
+
 ## Reproduce
 
 ```bash
 scripts/download_data.sh                 # ~450 MB into data/raw/
 python scripts/build_dataset.py          # writes data/processed/{train,val,test}.jsonl
+python scripts/train.py --model unsloth/Qwen3.5-0.8B --out outputs/exp1-qwen3.5-0.8b
+python scripts/predict.py --mode head --model outputs/exp1-qwen3.5-0.8b \
+    --data data/processed/val.jsonl --out outputs/preds/exp1c-val.jsonl
+python scripts/evaluate.py --data data/processed/val.jsonl --preds trained=outputs/preds/exp1c-val.jsonl
 ```
