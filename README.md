@@ -21,7 +21,7 @@ No repo appears in more than one split.
 
 Each row is one task:
 
-- `state`: the problem statement (JSON-encoded string), with SWE-smith's agent-prompt wrapper removed.
+- `state`: the problem statement as plain text, with SWE-smith's agent-prompt wrapper removed.
 - `questions`: one `choice` question, `route`, over the three models plus `none` (no model resolves it).
 - `gold`: soft distribution. With models sorted cheapest first and `p_k` each model's pass rate across runs,
   `P(k) = p_k · Π_{j cheaper} (1 − p_j)` and `P(none) = Π_k (1 − p_k)`. What to do on `none` is a deployment policy.

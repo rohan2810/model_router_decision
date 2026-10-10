@@ -123,7 +123,7 @@ def build_rows(runs, questions, split_of):
             "id": iid,
             "repo": repo_of(iid),
             "split": split_of(iid),
-            "state": json.dumps(statements[iid]),
+            "state": statements[iid],  # plain text: Unsloth only JSON-decodes states that start with { or [
             "questions": json.dumps(questions),
             "gold": json.dumps({"route": {
                 "type": "choice",

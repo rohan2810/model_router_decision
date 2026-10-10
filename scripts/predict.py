@@ -68,7 +68,7 @@ def predict_zeroshot(args, rows):
     for row in tqdm(rows, desc="zeroshot"):
         route = json.loads(row["questions"])["route"]
         names = list(route["criteria"])
-        statement = json.loads(row["state"])
+        statement = row["state"]
         ids = tokenizer(statement, add_special_tokens=False).input_ids
         if len(ids) > args.max_state_tokens:
             statement = tokenizer.decode(ids[: args.max_state_tokens]) + "\n[... truncated]"
