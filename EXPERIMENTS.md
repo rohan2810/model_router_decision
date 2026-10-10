@@ -290,6 +290,26 @@ Same rows as Exp 3 plus four questions next to `route`, built by `scripts/build_
 Best val signal so far, at chance on test. The extra questions help learn SWE-smith difficulty but that
 does not transfer to Verified.
 
+## Exp 7: train on real issues, repo-grouped cross-validation on Verified (Theory C)
+
+5 folds over SWE-bench Verified with whole repos held out (`scripts/build_variants.py cv`): fold0 django (231),
+fold1 sympy (75), fold2 pytest/seaborn/sphinx (65), fold3 flask/matplotlib/requests/xarray (65),
+fold4 astropy/pylint/scikit-learn (64). For each fold, train on the other folds and predict the held-out one;
+the 500 out-of-fold predictions are scored like the test set. Runner: `scripts/run_cv.sh`.
+
+**7a. Verified only** (269-436 training tasks per fold), 2B LoRA, 3 epochs, calibrated on SWE-smith val.
+
+| Router | Solve | $/task | vs mixing line (95% CI) | Picks (flash / mini / gpt-5.2 / none) | AUC flash solves / nothing solves |
+|---|---|---|---|---|---|
+| 7a Verified-only CV | 0.665 | 0.0140 | +0.0 | 500 / 0 / 0 / 0 | 0.541 / 0.459 |
+| 3 SWE-smith only (reference) | 0.684 | 0.0806 | +0.2 (-1.1 to +1.5) | 361 / 0 / 0 / 139 | 0.501 / 0.481 |
+
+It learns only the base rate (flash is the gold label for 75% of Verified tasks) and picks flash
+everywhere; its probabilities do not rank outcomes. Per-repo AUC for "flash solves" ranges 0.0 to 0.69,
+but only django (n = 231, AUC 0.49) has enough tasks to read.
+
+**7b. SWE-smith train + Verified** (2,182-2,349 training tasks per fold), 2B LoRA, 2 epochs: running.
+
 ---
 
 ## Later (parked ideas)
