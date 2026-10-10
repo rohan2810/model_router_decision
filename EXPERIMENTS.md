@@ -269,6 +269,27 @@ None beats random mixing on test, and none predicts which model solves a test ta
 Larger backbone and full fine-tuning lower val loss a little but do not transfer to SWE-bench Verified.
 No router ever picks gpt-5-mini or gpt-5.2 directly; every gpt-5.2 call comes from a `none` pick.
 
+## Exp 6: extra per-model and difficulty questions (Theory B)
+
+Same rows as Exp 3 plus four questions next to `route`, built by `scripts/build_variants.py aux`:
+`solves_<model>` (`noul`, gold = that model's pass rate) for flash, mini and gpt-5.2, and `difficulty`
+(`score` 0-3 = how many of the three models resolve the task). `route` stays the headline.
+2B LoRA, 2 epochs (Exp 3's best epoch), otherwise Exp 3's settings.
+
+- Command: `python scripts/train.py --model unsloth/Qwen3.5-2B --epochs 2 --train data/variants/aux/train.jsonl --val data/variants/aux/val.jsonl --out outputs/exp6-aux-2b-lora-2ep` (GPU 1)
+- Val loss (all five questions): 0.975 before, 0.907, 0.886.
+
+| | Val | Test |
+|---|---|---|
+| route: solve, $/task (highest pick, none -> gpt-5.2) | 0.570, 0.1054 | 0.703, 0.1839 |
+| route vs mixing line (95% CI) | +0.2 (-2.0 to +2.4) | -0.6 (-1.8 to +0.8) |
+| route picks (flash / mini / gpt-5.2 / none) | 240 / 0 / 0 / 97 | 152 / 0 / 0 / 348 |
+| AUC flash solves / nothing solves (route) | 0.625 / 0.629 | 0.507 / 0.511 |
+| AUC `solves_` flash / mini / gpt-5.2 | 0.639 / 0.696 / 0.624 | 0.518 / 0.498 / 0.526 |
+
+Best val signal so far, at chance on test. The extra questions help learn SWE-smith difficulty but that
+does not transfer to Verified.
+
 ---
 
 ## Later (parked ideas)
