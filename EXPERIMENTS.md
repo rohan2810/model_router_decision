@@ -185,7 +185,23 @@ model, not the best one.
 | Output | `outputs/exp3-qwen3.5-2b-6ep` |
 
 - Command: `PYTHONUNBUFFERED=1 python scripts/train.py --model unsloth/Qwen3.5-2B --epochs 6 --out outputs/exp3-qwen3.5-2b-6ep` (GPU 2)
-- Status: running (started 2026-10-10)
+- Status: done. 360 steps in 1,421 s (~24 min); 4-bit LoRA used ~6 GB of the 48 GB GPU.
+- Val loss by epoch: 1.142, **1.092**, 1.123, 1.377, 1.440, 1.608. Best at epoch 2, then overfits
+  (average train loss 0.806 vs final val loss 1.608). Every epoch's weights are kept under
+  `outputs/exp3-qwen3.5-2b-6ep/kept/` (`checkpoint-120` = epoch 2) by `outputs/keep_checkpoints.sh`.
+- Final (epoch 6) model after calibration: val accuracy 0.490, loss 1.280, ECE 0.134.
+
+**Results (val)**, highest-probability pick (`outputs/eval/exp3-val.json`)
+
+| Router | Acc | Soft CE | ECE | Solve | $/task | vs mixing line | Picks (flash / mini / gpt-5.2 / none) | AUC flash solves / nothing solves |
+|---|---|---|---|---|---|---|---|---|
+| 1c 0.8B LoRA (reference) | 0.454 | 1.119 | 0.059 | 0.555 | 0.1382 | -2.3 | 186 / 0 / 0 / 151 | 0.548 / 0.558 |
+| 2B LoRA, epoch 2 | 0.537 | 1.092 | 0.018 | 0.546 | 0.0445 | -0.2 | 300 / 0 / 0 / 37 | 0.568 / 0.607 |
+| 2B LoRA, epoch 6 | 0.490 | 1.275 | 0.114 | 0.570 | 0.1498 | -1.2 | 193 / 0 / 0 / 144 | 0.550 / 0.570 |
+
+Epoch 2 has the strongest signal so far and good calibration, but the highest-pick rule sends 300 of 337
+tasks to flash and only the 37 `none` picks to gpt-5.2, so routing stays on the mixing line.
+Epoch 2 (lowest val loss) goes to test.
 
 ## Exp 4: Qwen3.5-2B, full fine-tune, 6 epochs
 

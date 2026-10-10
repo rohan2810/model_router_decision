@@ -45,6 +45,8 @@ that resolves the task). Settings and commands for each run are in [EXPERIMENTS.
 | Qwen3.5-0.8B, prompted (zero-shot) | 1a | 0.537 | 0.0091 | 0.537 | 337 / 0 / 0 / 0 |
 | Qwen3.5-0.8B + untrained head | 1b | 0.507 | 0.0223 | 0.291 | 161 / 176 / 0 / 0 |
 | Qwen3.5-0.8B, trained | 1c | 0.555 | 0.1382 | 0.454 | 186 / 0 / 0 / 151 |
+| Qwen3.5-2B LoRA, epoch 2 of 6 (best val loss) | 3 | 0.546 | 0.0445 | 0.537 | 300 / 0 / 0 / 37 |
+| Qwen3.5-2B LoRA, epoch 6 of 6 | 3 | 0.570 | 0.1498 | 0.490 | 193 / 0 / 0 / 144 |
 | laya (English, 421M), zero-shot | 2a | 0.531 | 0.0881 | 0.104 | 0 / 262 / 34 / 41 |
 | laya-multilingual (322M), zero-shot | 2b | 0.611 | 0.2403 | 0.306 | 15 / 24 / 0 / 298 |
 | laya-typed-decisions (421M), zero-shot | 2c | 0.531 | 0.1184 | 0.068 | 0 / 237 / 99 / 1 |
