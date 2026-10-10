@@ -55,11 +55,11 @@ that resolves the task). Settings and commands for each run are in [EXPERIMENTS.
 | always gpt-5.2 | – | 0.727 | 0.2558 | – | – |
 | random | – | 0.649 | 0.1010 | – | – |
 | oracle (perfect routing) | – | 0.724 | 0.0952 | – | 377 / 7 / 116 / – |
-| Qwen3.5-0.8B, prompted (zero-shot) | 1a | running | | | |
+| Qwen3.5-0.8B, prompted (zero-shot) | 1a | 0.665 | 0.0140 | 0.754 | 500 / 0 / 0 / 0 |
 | Qwen3.5-0.8B, trained | 1c | not run | | | |
 
 The oracle sends each task to the cheapest model that solves it at least half the time, so its solve
-rate can sit below always-gpt-5.2. The prompted 0.8B picks flash for every val task: it adds nothing
+rate can sit below always-gpt-5.2. The prompted 0.8B picks flash for every val and test task: it adds nothing
 beyond "use the cheapest model".
 
 ## Reproduce

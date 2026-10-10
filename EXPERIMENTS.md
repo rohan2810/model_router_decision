@@ -79,9 +79,10 @@ Not a result.
 - Command: `python scripts/predict.py --mode zeroshot --model unsloth/Qwen3.5-0.8B --data data/processed/{val,test}.jsonl --out outputs/preds/exp1a-{val,test}.jsonl` (GPU 1)
 - Prompt asks for one option letter; probabilities are the letter logits averaged over the 4 cyclic
   rotations of the option order, so position bias cancels.
-- Status: val done; test running
-- Result (val): picks flash for all 337 tasks, so it is identical to always-flash. The prompted base
-  model adds no routing signal beyond "use the cheapest model".
+- Status: done (val and test)
+- Result: picks flash for all 337 val and all 500 test tasks, so it is identical to always-flash
+  (val: solve 0.537, $0.0091; test: solve 0.665, $0.0140, accuracy 0.754). The prompted base model
+  adds no routing signal beyond "use the cheapest model".
 
 ### 1b. Base + untrained head (sanity check)
 
