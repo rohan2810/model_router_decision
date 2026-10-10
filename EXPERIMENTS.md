@@ -25,9 +25,9 @@ gold is a soft distribution from each model's pass rate across runs.
 
 **Metrics** (`scripts/evaluate.py`)
 
-- Primary: expected solve rate and $/task when following the router, and the solve-vs-cost
-  curve over the escalation threshold tau (cheapest model whose cumulative probability >= tau).
-  Headline numbers: cost to match always-gpt-5.2's solve rate; solve rate at a fixed budget.
+- Primary: expected solve rate and $/task when each router picks its highest-probability option.
+  A router only helps if it lands above the line between always-flash and always-gpt-5.2
+  (randomly mixing the two gives any point on that line).
 - Secondary: accuracy vs gold label, soft cross-entropy, ECE, per-option recall.
 - A `none` pick is routed to gpt-5.2 unless stated (`--none-to`).
 - Hyperparameters are chosen on val; test is run once per final model.
@@ -111,9 +111,8 @@ Not a result.
 - Val routing (`outputs/eval/exp1-2-val.json`): argmax picks only flash (186) or `none` (151), never mini
   or gpt-5.2. Probabilities carry a weak signal: AUC 0.55 for "flash solves" and for "nothing solves"
   (laya checkpoints: 0.46-0.54).
-- Best policy on val: escalate at tau = 0.60 with `none` -> flash: solve 0.599 at $0.090/task, +3.7 points
-  over the flash/gpt-5.2 mixing line (0.562 at that cost). With `none` -> gpt-5.2: +1.3 points
-  (0.623 at $0.238). Tau chosen on val, so optimistic; next: test once with this policy frozen.
+- Highest-probability pick (the default): solve 0.555 at $0.138/task, below the flash/gpt-5.2 mixing
+  line (0.579 at that cost). Next: run on test with the same default.
 
 **Results (val)**
 
@@ -122,7 +121,6 @@ Not a result.
 | 1a base, prompted | 0.537 | 1.158 | 0.017 | 0.537 | 0.0091 | 337 / 0 / 0 / 0 |
 | 1b base + untrained head | 0.291 | 1.384 | 0.036 | 0.507 | 0.0223 | 161 / 176 / 0 / 0 |
 | 1c trained | 0.454 | 1.119 | 0.059 | 0.555 | 0.1382 | 186 / 0 / 0 / 151 |
-| 1c trained, tau = 0.60, none -> flash | – | – | – | 0.599 | 0.0900 | escalation policy |
 
 Solve and $/task above route by the argmax pick (a `none` pick goes to gpt-5.2). Full metrics, recall
 and the tau curve: `outputs/eval/exp1ab-val.json`.
@@ -147,8 +145,8 @@ Input limits: laya 512 tokens, laya-multilingual and laya-typed-decisions 1,024,
 | 2b laya-multilingual | 0.306 | 2.473 | 0.466 | 0.611 | 0.2403 | 15 / 24 / 0 / 298 |
 | 2c laya-typed-decisions | 0.068 | 1.682 | 0.271 | 0.531 | 0.1184 | 0 / 237 / 99 / 1 |
 
-None beats the flash/gpt-5.2 mixing line by more than 1.4 points at any tau; their probabilities are at
-chance for predicting outcomes (AUC 0.46-0.54).
+None lands above the flash/gpt-5.2 mixing line; their probabilities are at chance for predicting
+outcomes (AUC 0.46-0.54).
 
 The [Laya demo Space](https://huggingface.co/spaces/convaiinnovations/laya-demo) "Model routing" tab is
 a different design: laya answers four generic questions (difficulty 0-3, domain, needs tools, sensitive)
@@ -165,4 +163,7 @@ and hand-written thresholds pick a cheap or strong model. Candidate baseline 2d,
 - **Other-domain routing data.** Mix in e.g. RouterBench (MBPP and others) with each source's own
   model descriptions, sampled about 1:1 with ours, so the head learns to read option descriptions.
   Run as a controlled comparison on the same val set.
+- **Threshold rule instead of highest pick.** Walk models cheapest first, pick the first whose cumulative
+  probability reaches tau; send `none` to flash. On val, 1c at tau = 0.60 gave 0.599 at $0.090 (+3.7
+  points over the mixing line), but tau was tuned on val. Not adopted; highest pick is the default.
 - **Larger backbones.** Qwen3.5-2B and 4B once the 0.8B pipeline and numbers are settled.
