@@ -41,7 +41,7 @@ def predict_head(args, rows):
     for row in tqdm(rows, desc="head"):
         questions = json.loads(row["questions"])
         answers = FastDecisionModel.predict(model, tokenizer, row["state"], questions)
-        yield row, answers["route"]["probabilities"]
+        yield row, answers["route"]["probabilities"], answers
 
 
 def zeroshot_prompt(statement, instructions, options):
@@ -89,7 +89,7 @@ def predict_zeroshot(args, rows):
             probs = logits[letter_ids].softmax(-1).cpu()
             for i, name in enumerate(order):
                 scores[names.index(name)] += probs[i] / len(names)
-        yield row, {name: float(scores[i]) for i, name in enumerate(names)}
+        yield row, {name: float(scores[i]) for i, name in enumerate(names)}, None
 
 
 def main():
@@ -108,14 +108,17 @@ def main():
     run = predict_head if args.mode == "head" else predict_zeroshot
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     with open(args.out, "w") as f:
-        for row, probs in run(args, rows):
-            f.write(json.dumps({
+        for row, probs, answers in run(args, rows):
+            record = {
                 "id": row["id"],
                 "model": args.model,
                 "mode": args.mode,
                 "probabilities": probs,
                 "answer": max(probs, key=probs.get),
-            }) + "\n")
+            }
+            if answers and len(answers) > 1:  # rows with extra questions: keep every answer
+                record["answers"] = answers
+            f.write(json.dumps(record) + "\n")
     print(f"wrote {len(rows)} predictions to {args.out}")
 
 

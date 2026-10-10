@@ -11,6 +11,11 @@ For each predictions file (from scripts/predict.py), reports:
     cheaper options) reaches tau; low tau favours cheap models, tau=1 always picks the strongest
   - headline numbers from a fine tau sweep: the lowest $/task that matches always-<strongest>'s
     solve rate, and the best solve rate within --budget $/task
+  - vs_line         solve gain over randomly mixing always-<cheapest> and always-<strongest> at the
+                    router's cost, with a 95% bootstrap interval (tasks resampled; runs of one task
+                    stay together), for `none` sent to the strongest and to the cheapest model
+  - auc             how well the router's probabilities rank real outcomes: P(cheapest model) for
+                    "cheapest model solves", P(none) for "no model solves" (0.5 = no signal)
 
 A "none" pick (no model will resolve the task) is routed by --none-to: the strongest model
 (default, best chance anyway) or the cheapest (fail as cheaply as possible).
@@ -29,6 +34,8 @@ import argparse
 import json
 import math
 import os
+
+import numpy as np
 
 TAUS = [0.3, 0.5, 0.7, 0.9]
 TAU_SWEEP = [i / 100 for i in range(1, 101)]
@@ -78,6 +85,44 @@ def headline(rows, probs, models, none_to, target_solve, budget):
     }
 
 
+def auc(scores, labels):
+    scores, labels = np.asarray(scores, float), np.asarray(labels, bool)
+    if labels.all() or not labels.any():
+        return None
+    ranks = np.empty(len(scores))
+    order = scores.argsort(kind="mergesort")
+    ranks[order] = np.arange(1, len(scores) + 1)
+    for value in np.unique(scores):  # average ranks over ties
+        tied = scores == value
+        ranks[tied] = ranks[tied].mean()
+    n_pos = labels.sum()
+    return float((ranks[labels].sum() - n_pos * (n_pos + 1) / 2) / (n_pos * (len(labels) - n_pos)))
+
+
+def vs_line(rows, picks, models, n_boot=2000, seed=0):
+    """Solve gain over the cheapest/strongest mixing line at the router's cost, with a bootstrap CI."""
+    cheap, strong = models[0], models[-1]
+    solve = np.array([r["pass_rate"][p] for r, p in zip(rows, picks)])
+    cost = np.array([r["cost"][p] for r, p in zip(rows, picks)])
+    s_lo = np.array([r["pass_rate"][cheap] for r in rows]); c_lo = np.array([r["cost"][cheap] for r in rows])
+    s_hi = np.array([r["pass_rate"][strong] for r in rows]); c_hi = np.array([r["cost"][strong] for r in rows])
+
+    def gain(idx):
+        lo_s, lo_c, hi_s, hi_c = s_lo[idx].mean(), c_lo[idx].mean(), s_hi[idx].mean(), c_hi[idx].mean()
+        line = lo_s + (cost[idx].mean() - lo_c) / (hi_c - lo_c) * (hi_s - lo_s)
+        return solve[idx].mean() - line
+
+    groups = {}
+    for i, r in enumerate(rows):
+        groups.setdefault(r.get("task_id", r["id"]), []).append(i)
+    groups = [np.array(g) for g in groups.values()]
+    rng = np.random.default_rng(seed)
+    boot = [gain(np.concatenate([groups[j] for j in rng.integers(0, len(groups), len(groups))]))
+            for _ in range(n_boot)]
+    return {"solve": float(solve.mean()), "cost": float(cost.mean()), "gain": float(gain(np.arange(len(rows)))),
+            "ci": [float(np.percentile(boot, 2.5)), float(np.percentile(boot, 97.5))]}
+
+
 def score(rows, preds, options, models, none_to, target_solve, budget):
     gold = [json.loads(r["gold"])["route"] for r in rows]
     probs = [p["probabilities"] for p in preds]
@@ -96,6 +141,11 @@ def score(rows, preds, options, models, none_to, target_solve, budget):
         **headline(rows, probs, models, none_to, target_solve, budget),
         **outcome(rows, [none_to if a == NONE else a for a in argmax]),
         "escalation": {str(t): outcome(rows, [escalate(p, models, t, none_to) for p in probs]) for t in TAUS},
+        "vs_line": {f"none->{target}": vs_line(rows, [target if a == NONE else a for a in argmax], models)
+                    for target in (models[-1], models[0])},
+        "auc": {f"{models[0]} solves": auc([p[models[0]] for p in probs],
+                                           [r["pass_rate"][models[0]] >= 0.5 for r in rows]),
+                "no model solves": auc([p.get(NONE, 0.0) for p in probs], [r["oracle"] == NONE for r in rows])},
     }
 
 
@@ -153,6 +203,11 @@ def main():
         print(f"  {'recall':26s} {recall}")
         print(f"  {'cost to match ' + models[-1]:26s} " + (f"${match:.4f}/task" if match is not None else "not reached")
               + f" | best solve within ${args.budget:.2f}/task: " + (f"{within:.3f}" if within is not None else "none"))
+        for policy, v in r["vs_line"].items():
+            print(f"  {'vs mixing line, ' + policy:26s} solve {v['solve']:.3f} at ${v['cost']:.4f}: "
+                  f"{100 * v['gain']:+.1f} points (95% CI {100 * v['ci'][0]:+.1f} to {100 * v['ci'][1]:+.1f})")
+        print(f"  {'AUC':26s} " + "  ".join(f"{k}: {v:.3f}" if v is not None else f"{k}: n/a"
+                                            for k, v in r["auc"].items()))
         for tau, e in r["escalation"].items():
             print(f"  {'tau=' + tau:26s} {'':>6s} {'':>7s} {'':>6s} {e['solve']:6.3f} {e['cost']:8.4f}  {e['picks']}")
 
