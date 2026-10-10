@@ -203,6 +203,16 @@ Epoch 2 has the strongest signal so far and good calibration, but the highest-pi
 tasks to flash and only the 37 `none` picks to gpt-5.2, so routing stays on the mixing line.
 Epoch 2 (lowest val loss) goes to test.
 
+**Results (test)**, epoch 2, highest-probability pick (`outputs/eval/exp3-test.json`)
+
+| Router | Acc | Soft CE | ECE | Solve | $/task | vs mixing line | Picks (flash / mini / gpt-5.2 / none) | AUC flash solves / nothing solves |
+|---|---|---|---|---|---|---|---|---|
+| 1c 0.8B LoRA (reference) | 0.446 | 1.117 | 0.071 | 0.694 | 0.1550 | -0.7 | 232 / 0 / 0 / 268 | 0.530 / 0.534 |
+| 2B LoRA, epoch 2 | 0.582 | 1.061 | 0.070 | 0.684 | 0.0806 | +0.2 | 361 / 0 / 0 / 139 | 0.501 / 0.481 |
+
+The val signal (AUC 0.568 / 0.607) does not carry over to SWE-bench Verified: on test the probabilities
+are at chance (0.501 / 0.481). Routing lands on the mixing line (0.682 at $0.081).
+
 ## Exp 4: Qwen3.5-2B, full fine-tune, 6 epochs
 
 Same as Exp 3 but every backbone weight is trained (16-bit, no LoRA), with a lower learning rate.

@@ -62,6 +62,7 @@ that resolves the task). Settings and commands for each run are in [EXPERIMENTS.
 | oracle (perfect routing) | – | 0.724 | 0.0952 | – | 377 / 7 / 116 / – |
 | Qwen3.5-0.8B, prompted (zero-shot) | 1a | 0.665 | 0.0140 | 0.754 | 500 / 0 / 0 / 0 |
 | Qwen3.5-0.8B, trained | 1c | 0.694 | 0.1550 | 0.446 | 232 / 0 / 0 / 268 |
+| Qwen3.5-2B LoRA, epoch 2 of 6 (best val loss) | 3 | 0.684 | 0.0806 | 0.582 | 361 / 0 / 0 / 139 |
 
 The oracle sends each task to the cheapest model that solves it at least half the time, so its solve
 rate can sit below always-gpt-5.2.
