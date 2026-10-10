@@ -310,6 +310,30 @@ but only django (n = 231, AUC 0.49) has enough tasks to read.
 
 **7b. SWE-smith train + Verified** (2,182-2,349 training tasks per fold), 2B LoRA, 2 epochs: running.
 
+## Exp 8: scouting, issue + first 8 flash steps (Theory A)
+
+Changes the setup: deepseek-v4-flash starts the task, and the router sees the issue plus flash's first K = 8 agent
+steps (actions and observations, 600 characters each), then decides whether flash continues or the task restarts on
+another model. One row per flash run (`scripts/build_variants.py scout --k 8`): train 5,693 runs over 1,913 tasks, val 337,
+test 1,000 runs over 500 tasks. Gold uses this run's own outcome for flash and task-level pass rates for the others; a
+switch pays the prefix (mean $0.0015) on top. 2B LoRA, 2 epochs, max 4,096 tokens.
+
+- CPU probe first (`scripts/probe_scouting.py`, TF-IDF + logistic regression, AUC for "this flash run resolves it"):
+  K = 0 / 2 / 4 / 8 / 16 gave val 0.653 / 0.624 / 0.612 / 0.635 / 0.634 and **Verified 0.515 / 0.560 / 0.564 / 0.573 / 0.608**.
+- Training: val loss 1.382 before, 1.094, 1.051; calibrated val accuracy 0.546, ECE 0.060. 54 train rows truncated.
+
+| | Val | Test |
+|---|---|---|
+| Highest pick (none -> gpt-5.2): solve, $/task | 0.585, 0.1797 | 0.695, 0.1545 |
+| vs mixing line (95% CI) | -0.7 (-2.9 to +1.6) | -0.6 (-1.9 to +0.8) |
+| Picks (flash / mini / gpt-5.2 / none) | 163 / 0 / 0 / 174 | 541 / 0 / 0 / 459 |
+| AUC this flash run solves / nothing solves | 0.707 / 0.672 | **0.601 / 0.637** |
+| AUC "gpt-5.2 solves" among flash-fail runs | 0.531-0.547 | 0.531-0.593 |
+
+First router with signal on test, but it is difficulty signal: it predicts that flash will fail and that nothing will
+work, not which failing tasks gpt-5.2 would rescue. Extra analysis (not the headline): switch to gpt-5.2 when
+P(flash) < 0.50 and P(none) < 0.40 (chosen on val): val +1.6 (CI -0.0 to +3.3), test **-0.2 (CI -1.2 to +0.9)**.
+
 ---
 
 ## Later (parked ideas)
