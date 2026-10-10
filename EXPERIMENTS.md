@@ -112,7 +112,21 @@ Not a result.
   or gpt-5.2. Probabilities carry a weak signal: AUC 0.55 for "flash solves" and for "nothing solves"
   (laya checkpoints: 0.46-0.54).
 - Highest-probability pick (the default): solve 0.555 at $0.138/task, below the flash/gpt-5.2 mixing
-  line (0.579 at that cost). Next: run on test with the same default.
+  line (0.579 at that cost).
+- Test (`outputs/eval/exp1-test.json`): solve 0.694 at $0.1550/task, accuracy 0.446, ECE 0.071. Picks flash
+  232, `none` 268 (sent to gpt-5.2), never mini or gpt-5.2 directly. Mixing line at that cost: 0.701, so
+  0.7 points below it. Signal is weak: AUC 0.53 for "flash solves" and 0.534 for "nothing solves".
+  It over-predicts `none` (268 picks vs 84 tasks with no solver): `none` is 47% of training labels but
+  17% of test.
+
+**Results (test)**
+
+| Router | Acc | Soft CE | ECE | Solve | $/task | Picks (flash / mini / gpt-5.2 / none) |
+|---|---|---|---|---|---|---|
+| always flash | – | – | – | 0.665 | 0.0140 | |
+| always gpt-5.2 | – | – | – | 0.727 | 0.2558 | |
+| 1a base, prompted | 0.754 | 1.038 | 0.219 | 0.665 | 0.0140 | 500 / 0 / 0 / 0 |
+| 1c trained | 0.446 | 1.117 | 0.071 | 0.694 | 0.1550 | 232 / 0 / 0 / 268 |
 
 **Results (val)**
 

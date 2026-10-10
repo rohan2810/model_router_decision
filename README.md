@@ -59,7 +59,7 @@ that resolves the task). Settings and commands for each run are in [EXPERIMENTS.
 | random | – | 0.649 | 0.1010 | – | – |
 | oracle (perfect routing) | – | 0.724 | 0.0952 | – | 377 / 7 / 116 / – |
 | Qwen3.5-0.8B, prompted (zero-shot) | 1a | 0.665 | 0.0140 | 0.754 | 500 / 0 / 0 / 0 |
-| Qwen3.5-0.8B, trained | 1c | not run | | | |
+| Qwen3.5-0.8B, trained | 1c | 0.694 | 0.1550 | 0.446 | 232 / 0 / 0 / 268 |
 
 The oracle sends each task to the cheapest model that solves it at least half the time, so its solve
 rate can sit below always-gpt-5.2.
@@ -69,6 +69,11 @@ them (0.537 at $0.009 to 0.623 at $0.278), so a router only helps if it lands ab
 each router's highest-probability option, none of them does yet: the trained 0.8B reaches 0.555 at
 $0.138 (the line gives 0.579 at that cost). The prompted 0.8B picks flash for every val and test task: it adds nothing
 beyond "use the cheapest model".
+
+**Reading test.** The mixing line runs from always-flash (0.665 at $0.014) to always-gpt-5.2 (0.727 at
+$0.256). The trained 0.8B lands at 0.694 for $0.155, just under the line (0.701 at that cost): no better
+than randomly sending 58% of tasks to gpt-5.2. It picks `none` for 268 of 500 tasks although only 84 have
+no solver, because `none` is 47% of the training labels.
 
 ## Reproduce
 
