@@ -308,7 +308,14 @@ It learns only the base rate (flash is the gold label for 75% of Verified tasks)
 everywhere; its probabilities do not rank outcomes. Per-repo AUC for "flash solves" ranges 0.0 to 0.69,
 but only django (n = 231, AUC 0.49) has enough tasks to read.
 
-**7b. SWE-smith train + Verified** (2,182-2,349 training tasks per fold), 2B LoRA, 2 epochs: running.
+**7b. SWE-smith train + Verified** (2,182-2,349 training tasks per fold), 2B LoRA, 2 epochs.
+
+| Router | Solve | $/task | vs mixing line (95% CI) | Picks (flash / mini / gpt-5.2 / none) | AUC flash solves / nothing solves |
+|---|---|---|---|---|---|
+| 7b SWE-smith + Verified CV | 0.668 | 0.0604 | -0.9 (-1.9 to +0.2) | 408 / 0 / 0 / 92 | 0.496 / 0.529 |
+
+Adding ~400 real issues to the synthetic training data gives no signal on held-out repos either. From the issue
+text alone, neither real nor mixed training data helps.
 
 ## Exp 8: scouting, issue + first 8 flash steps (Theory A)
 
