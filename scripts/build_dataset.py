@@ -8,8 +8,10 @@ With models sorted cheapest first and p_k = pass rate of model k:
 
     P(k is the cheapest solver) = p_k * prod_{j cheaper than k} (1 - p_j)
 
-Whatever probability is left (no model solves it) goes to the strongest
-model, since that gives the task its best chance.
+Whatever probability is left, prod_k (1 - p_k), goes to a fourth option,
+"none": no model will resolve it. What to do on "none" (send it to the
+strongest model anyway, ask the user for more detail, ...) is left to the
+deployment policy.
 
 Usage:
     python scripts/build_dataset.py --raw data/raw --out data/processed
@@ -27,7 +29,7 @@ import pyarrow.parquet as pq
 
 # Cheapest first. Order is checked against mean training cost at build time.
 MODELS = ["deepseek-v4-flash", "gpt-5-mini", "gpt-5.2"]
-STRONGEST = "gpt-5.2"
+NONE = "none"
 
 TRAIN_FAMILY = "v3-2k-traj"         # SWE-smith tasks -> train / val
 TEST_FAMILY = "swebench-verified"   # SWE-bench Verified -> test
@@ -70,11 +72,8 @@ def repo_of(instance_id):
 
 
 def build_questions(costs):
-    criteria = {
-        m: f"Average cost ${costs[m]:.3f} per task."
-        + (" Strongest option; use it when no cheaper model will succeed." if m == STRONGEST else "")
-        for m in MODELS
-    }
+    criteria = {m: f"Average cost ${costs[m]:.3f} per task." for m in MODELS}
+    criteria[NONE] = "None of these models will resolve this task."
     return {
         "route": {
             "type": "choice",
@@ -89,7 +88,7 @@ def gold_distribution(pass_rate):
     for m in MODELS:
         probs[m] = none_solve * pass_rate[m]
         none_solve *= 1 - pass_rate[m]
-    probs[STRONGEST] += none_solve
+    probs[NONE] = none_solve
     return probs
 
 
@@ -128,7 +127,7 @@ def build_rows(runs, questions, split_of):
             "pass_rate": {m: round(pr[m], 4) for m in MODELS},
             "cost": {m: round(float(cost.loc[iid, m]), 5) for m in MODELS} if cost is not None else None,
             "n_runs": {m: int(n_runs.loc[iid, m]) for m in MODELS},
-            "oracle": solvers[0] if solvers else "none",
+            "oracle": solvers[0] if solvers else NONE,
         })
     return rows
 
