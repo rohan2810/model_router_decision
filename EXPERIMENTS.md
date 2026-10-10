@@ -166,6 +166,27 @@ The [Laya demo Space](https://huggingface.co/spaces/convaiinnovations/laya-demo)
 a different design: laya answers four generic questions (difficulty 0-3, domain, needs tools, sensitive)
 and hand-written thresholds pick a cheap or strong model. Candidate baseline 2d, not run yet.
 
+## Exp 3: Qwen3.5-2B, 6 epochs
+
+Same setup as Exp 1c except a larger backbone and twice the epochs. `train.py` keeps the last epoch's
+model, not the best one.
+
+| Setting | Value |
+|---|---|
+| Base model | `unsloth/Qwen3.5-2B`, loaded in 4-bit |
+| Train / val rows | 1,913 / 337 |
+| Max sequence length | 2,048 tokens |
+| LoRA | rank 16, alpha 16, dropout 0 |
+| Learning rate | 2e-4 LoRA (cosine, 10 warmup steps, weight decay 0.01); head 1e-4 |
+| Batch | 8 per device x 4 grad accumulation = 32 effective |
+| Epochs | 6 (~60 steps/epoch, ~360 steps) |
+| Seed | 3407 |
+| Calibration | `FastDecisionModel.calibrate` on val |
+| Output | `outputs/exp3-qwen3.5-2b-6ep` |
+
+- Command: `PYTHONUNBUFFERED=1 python scripts/train.py --model unsloth/Qwen3.5-2B --epochs 6 --out outputs/exp3-qwen3.5-2b-6ep` (GPU 2)
+- Status: running (started 2026-10-10)
+
 ---
 
 ## Later (parked ideas)
@@ -180,4 +201,4 @@ and hand-written thresholds pick a cheap or strong model. Candidate baseline 2d,
 - **Threshold rule instead of highest pick.** Walk models cheapest first, pick the first whose cumulative
   probability reaches tau; send `none` to flash. On val, 1c at tau = 0.60 gave 0.599 at $0.090 (+3.7
   points over the mixing line), but tau was tuned on val. Not adopted; highest pick is the default.
-- **Larger backbones.** Qwen3.5-2B and 4B once the 0.8B pipeline and numbers are settled.
+- **Larger backbones.** Qwen3.5-4B (2B is Exp 3).
