@@ -31,6 +31,13 @@ import pyarrow.parquet as pq
 MODELS = ["deepseek-v4-flash", "gpt-5-mini", "gpt-5.2"]
 NONE = "none"
 
+# One line per model for the option text; solve rate and cost are appended from training data.
+DESCRIPTIONS = {
+    "deepseek-v4-flash": "DeepSeek V4 Flash, DeepSeek's fast, low-cost model.",
+    "gpt-5-mini": "GPT-5 mini, OpenAI's small, low-cost GPT-5 model.",
+    "gpt-5.2": "GPT-5.2, OpenAI's flagship model.",
+}
+
 TRAIN_FAMILY = "v3-2k-traj"         # SWE-smith tasks -> train / val
 TEST_FAMILY = "swebench-verified"   # SWE-bench Verified -> test
 
@@ -71,8 +78,11 @@ def repo_of(instance_id):
     return instance_id.split(".")[0] if "." in instance_id else instance_id.rsplit("-", 1)[0]
 
 
-def build_questions(costs):
-    criteria = {m: f"Average cost ${costs[m]:.3f} per task." for m in MODELS}
+def build_questions(costs, solve_rates):
+    criteria = {
+        m: f"{DESCRIPTIONS[m]} Solves {solve_rates[m]:.0%} of training tasks at ${costs[m]:.3f} per task on average."
+        for m in MODELS
+    }
     criteria[NONE] = "None of these models will resolve this task."
     return {
         "route": {
@@ -154,12 +164,14 @@ def main():
     train_runs = load_runs(args.raw, TRAIN_FAMILY)
     test_runs = load_runs(args.raw, TEST_FAMILY)
 
-    # Option descriptions use training-set costs only, so test costs never leak into the input.
-    costs = train_runs.groupby("model").instance_cost.mean().to_dict()
-    assert sorted(MODELS, key=costs.get) == MODELS, f"MODELS not sorted by cost: {costs}"
-    questions = build_questions(costs)
-
+    # Option descriptions use train-split stats only, so val and test results never leak into the input.
     val_ids = set(train_runs.loc[train_runs.split == "val", "instance_id"])
+    by_model = train_runs[~train_runs.instance_id.isin(val_ids)].groupby("model")
+    costs = by_model.instance_cost.mean().to_dict()
+    solve_rates = by_model.resolved.mean().to_dict()
+    assert sorted(MODELS, key=costs.get) == MODELS, f"MODELS not sorted by cost: {costs}"
+    questions = build_questions(costs, solve_rates)
+
     train_val = build_rows(train_runs, questions, lambda i: "val" if i in val_ids else "train")
     test = build_rows(test_runs, questions, lambda i: "test")
 
