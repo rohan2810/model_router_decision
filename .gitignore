@@ -3,3 +3,5 @@ outputs/
 *.pyc
 __pycache__/
 .venv/
+.claude/
+unsloth_compiled_cache/
