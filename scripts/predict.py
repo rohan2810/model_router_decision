@@ -41,7 +41,8 @@ def predict_head(args, rows):
     for row in tqdm(rows, desc="head"):
         questions = json.loads(row["questions"])
         answers = FastDecisionModel.predict(model, tokenizer, row["state"], questions)
-        yield row, answers["route"]["probabilities"], answers
+        main_answer = answers["route"] if "route" in answers else next(iter(answers.values()))
+        yield row, main_answer["probabilities"], answers
 
 
 def zeroshot_prompt(statement, instructions, options):
