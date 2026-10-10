@@ -341,6 +341,18 @@ First router with signal on test, but it is difficulty signal: it predicts that 
 work, not which failing tasks gpt-5.2 would rescue. Extra analysis (not the headline): switch to gpt-5.2 when
 P(flash) < 0.50 and P(none) < 0.40 (chosen on val): val +1.6 (CI -0.0 to +3.3), test **-0.2 (CI -1.2 to +0.9)**.
 
+## Exp 10: train directly on "would gpt-5.2 rescue it" (with scouting)
+
+Targets the model-specific part routing needs. Only flash runs that fail, with flash's first 8 steps shown;
+one `noul` question: if the task is restarted on gpt-5.2, will gpt-5.2 resolve it? (gold = gpt-5.2 pass rate).
+Train 3,392 runs (gpt-5.2 rescues 19%), val 156 (31%), test 335 (44%). 2B LoRA, 2 epochs, max 4,096 tokens.
+
+- Command: `scripts/run_experiment.sh data/variants/rescue-k8 outputs/exp10-rescue-k8-2b-lora-2ep outputs/preds/exp10-rescue-k8 --model unsloth/Qwen3.5-2B --epochs 2 --max-seq-length 4096` (GPU 1)
+- Val loss 0.688 before, 0.650 (epoch 1), 0.868 (epoch 2, overfitting).
+- AUC "gpt-5.2 rescues": **val 0.470, test 0.469**. No signal.
+
+Which failing tasks a stronger model would fix is not learnable from the issue plus flash's first steps here.
+
 ---
 
 ## Later (parked ideas)
