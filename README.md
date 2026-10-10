@@ -44,7 +44,11 @@ that resolves the task). Settings and commands for each run are in [EXPERIMENTS.
 | oracle (perfect routing) | – | 0.691 | 0.1609 | – | 181 / 20 / 136 / – |
 | Qwen3.5-0.8B, prompted (zero-shot) | 1a | 0.537 | 0.0091 | 0.537 | 337 / 0 / 0 / 0 |
 | Qwen3.5-0.8B + untrained head | 1b | 0.507 | 0.0223 | 0.291 | 161 / 176 / 0 / 0 |
-| Qwen3.5-0.8B, trained | 1c | running | | | |
+| Qwen3.5-0.8B, trained | 1c | 0.555 | 0.1382 | 0.454 | 186 / 0 / 0 / 151 |
+| Qwen3.5-0.8B, trained, tau = 0.60, none -> flash | 1c | **0.599** | **0.0900** | – | escalation policy, see below |
+| laya (English, 421M), zero-shot | 2a | 0.531 | 0.0881 | 0.104 | 0 / 262 / 34 / 41 |
+| laya-multilingual (322M), zero-shot | 2b | 0.611 | 0.2403 | 0.306 | 15 / 24 / 0 / 298 |
+| laya-typed-decisions (421M), zero-shot | 2c | 0.531 | 0.1184 | 0.068 | 0 / 237 / 99 / 1 |
 
 **Test** (SWE-bench Verified, 500 tasks)
 
@@ -59,7 +63,13 @@ that resolves the task). Settings and commands for each run are in [EXPERIMENTS.
 | Qwen3.5-0.8B, trained | 1c | not run | | | |
 
 The oracle sends each task to the cheapest model that solves it at least half the time, so its solve
-rate can sit below always-gpt-5.2. The prompted 0.8B picks flash for every val and test task: it adds nothing
+rate can sit below always-gpt-5.2.
+
+**Reading val.** Randomly mixing always-flash and always-gpt-5.2 gives any point on the line between
+them (0.537 at $0.009 to 0.623 at $0.278), so a router only helps if it lands above that line. Best gain
+over the line across the tau sweep: trained 0.8B with `none` -> flash **+3.7 points** (0.599 at $0.090 vs
+0.562 on the line); laya +1.4, laya-multilingual +0.7. Tau was picked on val, so this is optimistic;
+the test run uses tau = 0.60 frozen. The prompted 0.8B picks flash for every val and test task: it adds nothing
 beyond "use the cheapest model".
 
 ## Reproduce

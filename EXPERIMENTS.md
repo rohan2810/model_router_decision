@@ -106,7 +106,14 @@ Not a result.
 | Output | `outputs/exp1-qwen3.5-0.8b` |
 
 - Command: `PYTHONUNBUFFERED=1 python scripts/train.py --model unsloth/Qwen3.5-0.8B --out outputs/exp1-qwen3.5-0.8b` (GPU 2)
-- Status: running (started 2026-10-10)
+- Status: done. 180 steps in 526 s (~9 min).
+- Val loss by epoch: 1.192 -> 1.137 -> 1.126 (still falling at the end). Calibrated val: accuracy 0.457, ECE 0.060.
+- Val routing (`outputs/eval/exp1-2-val.json`): argmax picks only flash (186) or `none` (151), never mini
+  or gpt-5.2. Probabilities carry a weak signal: AUC 0.55 for "flash solves" and for "nothing solves"
+  (laya checkpoints: 0.46-0.54).
+- Best policy on val: escalate at tau = 0.60 with `none` -> flash: solve 0.599 at $0.090/task, +3.7 points
+  over the flash/gpt-5.2 mixing line (0.562 at that cost). With `none` -> gpt-5.2: +1.3 points
+  (0.623 at $0.238). Tau chosen on val, so optimistic; next: test once with this policy frozen.
 
 **Results (val)**
 
@@ -114,10 +121,38 @@ Not a result.
 |---|---|---|---|---|---|---|
 | 1a base, prompted | 0.537 | 1.158 | 0.017 | 0.537 | 0.0091 | 337 / 0 / 0 / 0 |
 | 1b base + untrained head | 0.291 | 1.384 | 0.036 | 0.507 | 0.0223 | 161 / 176 / 0 / 0 |
-| 1c trained | | | | | | |
+| 1c trained | 0.454 | 1.119 | 0.059 | 0.555 | 0.1382 | 186 / 0 / 0 / 151 |
+| 1c trained, tau = 0.60, none -> flash | – | – | – | 0.599 | 0.0900 | escalation policy |
 
 Solve and $/task above route by the argmax pick (a `none` pick goes to gpt-5.2). Full metrics, recall
 and the tau curve: `outputs/eval/exp1ab-val.json`.
+
+## Exp 2: off-the-shelf Laya decision models (zero-shot)
+
+Laya checkpoints from [convaiinnovations](https://huggingface.co/convaiinnovations/laya), run through
+`predict.py --mode head --no-4bit` (Laya runs in 16-bit only) on the same route question. No training.
+Input limits: laya 512 tokens, laya-multilingual and laya-typed-decisions 1,024, so long tasks are cut.
+
+| Exp | Checkpoint | Encoder, params |
+|---|---|---|
+| 2a | `convaiinnovations/laya` | ModernBERT-large, 421M |
+| 2b | `convaiinnovations/laya-multilingual` | mmBERT-base, 322M |
+| 2c | `convaiinnovations/laya-typed-decisions` | ModernBERT-large, 421M, fine-tuned on typed-decisions |
+
+**Results (val)**
+
+| Router | Acc | Soft CE | ECE | Solve | $/task | Picks (flash / mini / gpt-5.2 / none) |
+|---|---|---|---|---|---|---|
+| 2a laya | 0.104 | 1.809 | 0.261 | 0.531 | 0.0881 | 0 / 262 / 34 / 41 |
+| 2b laya-multilingual | 0.306 | 2.473 | 0.466 | 0.611 | 0.2403 | 15 / 24 / 0 / 298 |
+| 2c laya-typed-decisions | 0.068 | 1.682 | 0.271 | 0.531 | 0.1184 | 0 / 237 / 99 / 1 |
+
+None beats the flash/gpt-5.2 mixing line by more than 1.4 points at any tau; their probabilities are at
+chance for predicting outcomes (AUC 0.46-0.54).
+
+The [Laya demo Space](https://huggingface.co/spaces/convaiinnovations/laya-demo) "Model routing" tab is
+a different design: laya answers four generic questions (difficulty 0-3, domain, needs tools, sensitive)
+and hand-written thresholds pick a cheap or strong model. Candidate baseline 2d, not run yet.
 
 ---
 
