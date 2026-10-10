@@ -153,10 +153,13 @@ def summarize(name, rows):
 
 
 def main():
+    global MODELS
     ap = argparse.ArgumentParser()
     ap.add_argument("--raw", default="data/raw")
     ap.add_argument("--out", default="data/processed")
+    ap.add_argument("--models", default=",".join(MODELS), help="model pool, cheapest first, comma-separated")
     args = ap.parse_args()
+    MODELS = args.models.split(",")
     os.makedirs(args.out, exist_ok=True)
 
     train_runs = load_runs(args.raw, TRAIN_FAMILY)

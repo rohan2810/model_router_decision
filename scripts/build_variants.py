@@ -6,7 +6,8 @@
   cv        Repo-grouped folds over SWE-bench Verified (test.jsonl). For each fold f writes
             fold{f}/heldout.jsonl, fold{f}/train-verified.jsonl (other folds) and
             fold{f}/train-mixed.jsonl (SWE-smith train + other folds).
-  scout     One row per deepseek-v4-flash run: state = issue + that run's first K agent steps. The
+  scout     One row per run of the cheapest model in --models (default deepseek-v4-flash): state = issue +
+            that run's first K agent steps. The
             router then decides whether flash continues or the task restarts on another model. Gold uses
             this run's own outcome for flash and the task-level pass rates for the others; a switch pays
             the prefix cost on top of the new model's cost.
@@ -78,15 +79,15 @@ def repo_folds(rows, k):
     return folds
 
 
-def render_prefix(messages, k, max_chars):
+def render_prefix(messages, k, max_chars, model):
     steps = messages[2:]
-    lines = [f"--- First {k} steps of deepseek-v4-flash on this task ---"]
+    lines = [f"--- First {k} steps of {model} on this task ---"]
     for i in range(0, min(2 * k, len(steps)), 2):
         lines.append(f"[step {i // 2 + 1}] ACTION: {steps[i]['content'][:max_chars]}")
         if i + 1 < len(steps):
             lines.append(f"OBSERVATION: {steps[i + 1]['content'][:max_chars]}")
     if 2 * k >= len(steps):
-        lines.append("[deepseek-v4-flash finished within these steps]")
+        lines.append(f"[{model} finished within these steps]")
     return "\n".join(lines)
 
 
@@ -94,11 +95,14 @@ def scout_rows(rows, raw, family, k, max_chars):
     import numpy as np
     import pandas as pd
     sys.path.insert(0, os.path.dirname(__file__))
+    import build_dataset
     from build_dataset import gold_distribution, confidence
+    build_dataset.MODELS = MODELS  # gold_distribution reads the pool from its own module
 
     by_id = {r["id"]: r for r in rows}
     out = []
-    for path in sorted(glob.glob(os.path.join(raw, f"{family}-deepseek-v4-flash", "*.parquet"))):
+    scout = MODELS[0]
+    for path in sorted(glob.glob(os.path.join(raw, f"{family}-{scout}", "*.parquet"))):
         run = os.path.basename(path).split("-")[0]
         d = pd.read_parquet(path, columns=["instance_id", "messages", "resolved", "instance_cost", "step_cost_list"])
         for t in d.itertuples():
@@ -106,17 +110,17 @@ def scout_rows(rows, raw, family, k, max_chars):
             if base is None or t.resolved is None or (isinstance(t.resolved, float) and np.isnan(t.resolved)):
                 continue
             prefix_cost = float(np.sum(t.step_cost_list[:k]))
-            pass_rate = dict(base["pass_rate"], **{"deepseek-v4-flash": float(t.resolved)})
-            cost = {m: (float(t.instance_cost) if m == "deepseek-v4-flash" else prefix_cost + base["cost"][m])
+            pass_rate = dict(base["pass_rate"], **{scout: float(t.resolved)})
+            cost = {m: (float(t.instance_cost) if m == scout else prefix_cost + base["cost"][m])
                     for m in MODELS}
             probs = gold_distribution(pass_rate)
             questions = json.loads(base["questions"])
             questions["route"]["instructions"] = (
-                "deepseek-v4-flash has started on this coding task (its first steps are shown). Which is the "
-                "cheapest model that will resolve it: let deepseek-v4-flash continue, or restart it on another model?")
+                f"{scout} has started on this coding task (its first steps are shown). Which is the "
+                f"cheapest model that will resolve it: let {scout} continue, or restart it on another model?")
             solvers = [m for m in MODELS if pass_rate[m] >= 0.5]
             out.append(dict(base, id=f"{t.instance_id}#{run}", task_id=t.instance_id,
-                            state=base["state"] + "\n\n" + render_prefix(t.messages, k, max_chars),
+                            state=base["state"] + "\n\n" + render_prefix(t.messages, k, max_chars, scout),
                             questions=json.dumps(questions),
                             gold=json.dumps({"route": {"type": "choice", "label": max(probs, key=probs.get),
                                                        "probabilities": {m: round(p, 6) for m, p in probs.items()},
@@ -127,6 +131,7 @@ def scout_rows(rows, raw, family, k, max_chars):
 
 
 def main():
+    global MODELS
     ap = argparse.ArgumentParser()
     ap.add_argument("variant", choices=["aux", "cv", "scout"])
     ap.add_argument("--data", default="data/processed")
@@ -134,8 +139,10 @@ def main():
     ap.add_argument("--folds", type=int, default=5)
     ap.add_argument("--raw", default="data/raw")
     ap.add_argument("--k", type=int, default=8, help="scout: agent steps shown")
+    ap.add_argument("--models", default=",".join(MODELS), help="model pool, cheapest first (must match --data)")
     ap.add_argument("--max-chars", type=int, default=600, help="scout: characters kept per action/observation")
     args = ap.parse_args()
+    MODELS = args.models.split(",")
 
     if args.variant == "aux":
         for split in ("train", "val", "test"):
@@ -149,7 +156,7 @@ def main():
             rows = scout_rows(load(os.path.join(args.data, f"{split}.jsonl")), args.raw, family, args.k, args.max_chars)
             write(rows, os.path.join(args.out, f"{split}.jsonl"))
             chars = sorted(len(r["state"]) for r in rows)
-            print(f"{split}: {len(rows)} flash runs over {len({r['task_id'] for r in rows})} tasks | state chars "
+            print(f"{split}: {len(rows)} {MODELS[0]} runs over {len({r['task_id'] for r in rows})} tasks | state chars "
                   f"median {chars[len(chars) // 2]}, p95 {chars[int(len(chars) * .95)]} | "
                   f"mean prefix ${sum(r['prefix_cost'] for r in rows) / len(rows):.4f}")
         return
