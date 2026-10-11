@@ -392,6 +392,24 @@ keeps it an early peek (prefix $0.004 of mini's $0.033). 2B LoRA, 2 epochs, max 
 
 A bigger gap does not make the rescue decision learnable here: val gains again vanish on Verified.
 
+## Exp 12: same pool, scouting K = 8
+
+As Exp 11 with mini's first 8 steps (prefix $0.0126, 18% of mini runs already finished within it, so this is
+partly a check after mini has mostly run). Val loss 1.094 before, 1.011, 0.975; calibrated val accuracy 0.576.
+
+| | Val | Test |
+|---|---|---|
+| Highest pick (none -> gpt-5.2): solve, $/task | 0.596, 0.2062 | 0.669, 0.1892 |
+| vs mini/gpt-5.2 mixing line (95% CI) | +1.6 (-0.4 to +3.8) | -0.1 (-2.0 to +1.8) |
+| Picks (mini / gpt-5.2 / none) | 150 / 0 / 187 | 201 / 0 / 299 |
+| AUC mini solves / nothing solves | 0.737 / 0.669 | 0.594 / 0.546 |
+| AUC "gpt-5.2 rescues" among mini-fail runs | 0.479 | 0.495 |
+| Switch rule tuned on val (P(mini) < 0.25, P(none) < 0.80) | +2.5 (+0.4 to +4.7) | **+1.3 (-0.5 to +3.2)**, 0.631 at $0.1179 |
+
+First switch rule that stays positive on test, but the CI includes 0. It has no rescue signal; the small gain comes
+from the bigger gap (gpt-5.2 rescues about half of mini's test failures, so escalating likely mini failures pays
+more often than in the flash pool).
+
 ---
 
 ## Later (parked ideas)
