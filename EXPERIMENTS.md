@@ -368,6 +368,30 @@ Train 3,392 runs (gpt-5.2 rescues 19%), val 156 (31%), test 335 (44%). 2B LoRA, 
 
 Which failing tasks a stronger model would fix is not learnable from the issue plus flash's first steps here.
 
+## Exp 11: a pool with a bigger gap, gpt-5-mini -> gpt-5.2, scouting K = 4
+
+Tests whether routing gets learnable when the cheap model is weaker. On Verified, "cheap fails, strong solves" is
+24.4% of tasks for mini -> gpt-5.2 vs 7.2% for flash -> gpt-5.2. Data: `build_dataset.py --models gpt-5-mini,gpt-5.2
+--out data/processed-mini52`, then `build_variants.py scout --models gpt-5-mini,gpt-5.2 --k 4`. Route options: mini,
+gpt-5.2, none. Mini runs are short (median 13 steps on Verified vs 38 for flash; 18% finish within 8 steps), so K = 4
+keeps it an early peek (prefix $0.004 of mini's $0.033). 2B LoRA, 2 epochs, max 4,096 tokens.
+
+- CPU probe first (`scripts/probe_pool.py`, TF-IDF, threshold chosen on val): test AUC "mini solves" 0.527 (K = 0),
+  0.587 (K = 4), 0.659 (K = 8), 0.680 (K = 16); gain vs mixing line -0.1, +0.5, -1.7 points; best threshold chosen
+  on test itself (optimistic) only +0.4 (K = 8) / +0.6 (K = 16), CIs include 0.
+- Val loss 1.094 before, 1.010, 1.013; calibrated val accuracy 0.576.
+
+| | Val | Test |
+|---|---|---|
+| Highest pick (none -> gpt-5.2): solve, $/task | 0.582, 0.1677 | 0.628, 0.1571 |
+| vs mini/gpt-5.2 mixing line (95% CI) | +1.9 (-0.2 to +4.1) | **-2.1 (-4.1 to -0.2)** |
+| Picks (mini / gpt-5.2 / none) | 192 / 0 / 145 | 283 / 0 / 217 |
+| AUC mini solves / nothing solves | 0.702 / 0.632 | 0.567 / 0.564 |
+| AUC "gpt-5.2 rescues" among mini-fail runs | 0.465 | 0.542 |
+| Switch rule tuned on val (P(mini) < 0.40, P(none) < 0.90) | +2.1 (+0.0 to +4.3) | -1.8 (-3.7 to +0.2) |
+
+A bigger gap does not make the rescue decision learnable here: val gains again vanish on Verified.
+
 ---
 
 ## Later (parked ideas)
